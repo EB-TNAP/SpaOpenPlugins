@@ -93,7 +93,9 @@ class DownloadComponent:
 			rute = rute + ' ' + cmd
 
 		if fileExists(filename) and not self.picon:
-			self.callCallbacks(self.EVENT_DONE, self.number, self.ref, self.name)
+			# Don't call callbacks immediately to avoid recursion
+			# The progress will be handled by the calling function
+			return
 		else:
 			self.runCmd(rute)
 
@@ -527,7 +529,14 @@ class PlutoDownload(Screen):
 						self.down = DownloadComponent(param+1, ref, name, True)
 						self.down.addCallback(self.actualizaprogreso)
 
-						self.down.startCmd(logo)
+						# Check if file already exists to avoid recursion
+						picon_path = searchPaths[0]
+						filename = os.path.join(picon_path, ref.replace(":","_")+".png")
+						if fileExists(filename):
+							# File exists, skip download and continue to next
+							self.actualizaprogreso(event=DownloadComponent.EVENT_DONE, param=param+1)
+						else:
+							self.down.startCmd(logo)
 					else:
 						self.fd.close()
 						self.fd = None
@@ -684,7 +693,14 @@ class DownloadSilent:
 						except:
 							last_day = 9999999
 
-						self.down.startCmd(logo)
+						# Check if file already exists to avoid recursion
+						picon_path = searchPaths[0]
+						filename = os.path.join(picon_path, ref.replace(":","_")+".png")
+						if fileExists(filename):
+							# File exists, skip download and continue to next
+							self.actualizaprogreso(event=DownloadComponent.EVENT_DONE, param=param+1)
+						else:
+							self.down.startCmd(logo)
 					else:
 						self.fd.close()
 						self.fd = None
