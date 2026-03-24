@@ -11,12 +11,10 @@ from Components.Input import Input
 from Tools.BoundFunction import boundFunction
 from Tools.Directories import fileContains, fileExists, resolveFilename, SCOPE_LANGUAGE, SCOPE_PLUGINS
 from Tools.LoadPixmap import LoadPixmap
-from enigma import eTimer
+from enigma import eTimer, getDesktop
 from time import time
 from datetime import datetime
 from Components.Language import language
-from Plugins.Extensions.spazeMenu.plugin import esHD
-from Plugins.Extensions.spazeMenu.spzVirtualKeyboard import spzVirtualKeyboard
 from Plugins.Extensions.Tailscale.__init__ import _
 from requests.auth import HTTPBasicAuth
 import json
@@ -25,6 +23,8 @@ import subprocess
 import requests
 import os
 
+screenWidth = getDesktop(0).size().width()
+
 
 def getData():
 	dato = os.popen("tailscale status --json")
@@ -32,17 +32,17 @@ def getData():
 	return data
 
 class TailscaleNetwork(Screen):
-	if esHD():
+	if screenWidth == 1920:
 		skin = """
 		<screen name="Tailscale" position="center,120" size="1230,780" title=" ">
 			<widget name="picRed" pixmap="buttons/red_HD.png" position="60,707" size="210,60" alphatest="blend" transparent="1" />
 			<widget name="picGreen" pixmap="buttons/green_HD.png" position="360,707" size="210,60" alphatest="blend" transparent="1" />
 			<widget name="picYellow" pixmap="buttons/yellow_HD.png" position="660,707" size="210,60" alphatest="blend" transparent="1" />
 			<widget name="picBlue" pixmap="buttons/blue_HD.png" position="960,707" size="210,60" alphatest="blend" transparent="1" />
-			<widget name="lblRed" position="15,707" size="300,60" zPosition="1" font="RegularHD;20" halign="center" valign="center" transparent="1" />
-			<widget name="lblGreen" position="315,707" size="300,60" zPosition="1" font="RegularHD;20" halign="center" valign="center" transparent="1" />
-			<widget name="lblYellow" position="615,707" size="300,60" zPosition="1" font="RegularHD;20" halign="center" valign="center" transparent="1" />
-			<widget name="lblBlue" position="915,707" size="300,60" zPosition="1" font="RegularHD;20" halign="center" valign="center" transparent="1" />
+			<widget name="lblRed" position="15,707" size="300,60" zPosition="1" font="RegularHD;17" halign="center" valign="center" transparent="1" />
+			<widget name="lblGreen" position="315,707" size="300,60" zPosition="1" font="RegularHD;17" halign="center" valign="center" transparent="1" />
+			<widget name="lblYellow" position="615,707" size="300,60" zPosition="1" font="RegularHD;17" backgroundColor="#00a58b01" halign="center" valign="center" transparent="1" />
+			<widget name="lblBlue" position="915,707" size="300,60" zPosition="1" font="RegularHD;17" halign="center" valign="center" transparent="1" />
 			<widget source="list" render="Listbox" position="12,68" size="1200,630" scrollbarMode="showOnDemand" enableWrapAround="on">
 				<convert type="TemplatedMultiContent">
 					{ "template": [ MultiContentEntryText(pos=(135,2),size=(1080,45),font=0,text=4),
@@ -55,7 +55,7 @@ class TailscaleNetwork(Screen):
 					}
 				</convert>
 			</widget>
-			<eLabel name="menu" text="Menu" position="1101,15" size="200,45" font="RegularHD;18" zPosition="2"/>
+			<eLabel name="menu" text="Menu" position="1050,15" size="100,45" font="RegularHD;18" halign="center" valign="center" backgroundColor="key_back" zPosition="2"/>
 			<widget name="picMenu" position="1060,20" size="75,37" pixmap="buttons/key_menu.png" transparent="1" alphatest="blend" />
 			<widget name="lblStatus" position="19,9" size="1100,51" font="RegularHD;20" zPosition="2" transparent="1"/>
 		</screen>"""
@@ -111,7 +111,7 @@ class TailscaleNetwork(Screen):
 
 		self.checkLogin()
 		self.line = LoadPixmap('/usr/lib/enigma2/python/Plugins/Extensions/Tailscale/images/div-h.png')
-		if esHD():
+		if screenWidth == 1920:
 			self.networkpic = LoadPixmap('/usr/lib/enigma2/python/Plugins/Extensions/Tailscale/images/network-hd.png')
 		else:
 			self.networkpic = LoadPixmap('/usr/lib/enigma2/python/Plugins/Extensions/Tailscale/images/network.png')
@@ -124,6 +124,12 @@ class TailscaleNetwork(Screen):
 
 		self['list'].onSelectionChanged.append(self.selectionChanged)
 		self.onLayoutFinish.append(self.layoutFinished)
+		if fileContains('/etc/keys/tailscale_api.key', 'tskey-api'):
+			with open('/etc/keys/tailscale_api.key', 'r') as fd:
+				for line in fd.readlines():
+					if 'tskey-api' in line and ' ' in line or 'tskey-api' in line and '\n' in line:
+						with open('/etc/keys/tailscale_api.key', 'w') as fw:
+							fw.write(line.replace('\n', '').split(' ', 1)[0] if ' ' in line else line.replace('\n', ''))
 
 	def layoutFinished(self):
 		self.UpdateTitle()
@@ -236,8 +242,8 @@ class TailscaleNetwork(Screen):
 				for device in devices:
 					devicelist.append((device['hostname'], device['addresses'][0], device['clientVersion'].split('-')[0]))
 				self.session.open(Tailscaleuser, devicelist)
-			except:
-				self.session.open(MessageBox, _('Could not get the list of devices on your network.\n\nTo display the devices in your Tailscale network you must:\n1. Delete if an old key exists in your Tailscale web session\n2. Click in \"Generate access token\" in your Tailscale web session\n3. Enter your generated key in /etc/keys/tailscale_api.key\n4. NOTE: If you still see this message after following these steps, delete the current API key from your token and generate a new one.'), MessageBox.TYPE_INFO, simple=True)
+			except Exception:
+				self.session.open(MessageBox, _('Could not get the list of devices on your network.\n\nTo display the devices in your Tailscale network you must:\n1. Delete if an old key exists in your Tailscale web session\n2. Click in \"Generate access token\" in your Tailscale web session\n3. Enter your generated key in /etc/keys/tailscale_api.key.'), MessageBox.TYPE_INFO, simple=True)
 
 	def keyBlue(self):
 		p = process.ProcessList()
@@ -249,24 +255,30 @@ class TailscaleNetwork(Screen):
 		self.UpdateTimer.start(5000, True)
 
 	def get_devices(self):
-		self.api_key = open('/etc/keys/tailscale_api.key','r').read().replace("\n","")
-		self.base_url = 'https://api.tailscale.com/api/v2'
-		self._auth = HTTPBasicAuth(self.api_key, '')
-		self._headers = {
-			'Accept':'application/json'
-		}
-		p = process.ProcessList()
-		tailscale_process = str(p.named('tailscaled')).strip('[]')
-		if tailscale_process:
-			networks = json.loads(getData())
-			self.tailnet = networks.get("CurrentTailnet")['Name']
-			url = f'{self.base_url}/tailnet/{self.tailnet}/devices'
-			response = requests.get(url, auth=self._auth)
-			return response
+		tskey_api = None
+		if fileContains('/etc/keys/tailscale_api.key', 'tskey-api'):
+			with open('/etc/keys/tailscale_api.key', 'r') as fd:
+				for line in fd.readlines():
+					if "tskey-api" in line:
+						tskey_api = line
+		if tskey_api:
+			self.base_url = 'https://api.tailscale.com/api/v2'
+			self._auth = HTTPBasicAuth(tskey_api , 'password')
+			self._headers = {
+				'Accept':'application/json'
+			}
+			p = process.ProcessList()
+			tailscale_process = str(p.named('tailscaled')).strip('[]')
+			if tailscale_process:
+				networks = json.loads(getData())
+				self.tailnet = networks.get("CurrentTailnet")['Name']
+				url = f'{self.base_url}/tailnet/{self.tailnet}/devices'
+				response = requests.get(url, auth=self._auth)
+				return response
 		return ""
 
 class Tailscaleuser(Screen):
-	if esHD():
+	if screenWidth == 1920:
 		skin = """
 		<screen name="TailscaleUser" position="center,120" size="1230,780" title=" ">
 			<widget name="picRed" pixmap="buttons/red_HD.png" position="60,707" size="210,60" alphatest="blend" transparent="1" />
@@ -323,7 +335,7 @@ class Tailscaleuser(Screen):
 		self['lblRed'] = Label(_("Close"))
 
 		self.line = LoadPixmap('/usr/lib/enigma2/python/Plugins/Extensions/Tailscale/images/div-h.png')
-		if esHD():
+		if screenWidth == 1920:
 			self.networkpic = LoadPixmap('/usr/lib/enigma2/python/Plugins/Extensions/Tailscale/images/network-hd.png')
 		else:
 			self.networkpic = LoadPixmap('/usr/lib/enigma2/python/Plugins/Extensions/Tailscale/images/network.png')
